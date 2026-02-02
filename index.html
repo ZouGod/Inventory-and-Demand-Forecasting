@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wing Shop - Random Forest Forecasting Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        select, input {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .chart-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        footer {
+            background: #f5f5f5;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .charts {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏪 Wing Shop Forecasting</h1>
+            <p>Random Forest ML Model for Inventory Demand Prediction</p>
+        </header>
+
+        <div class="content">
+            <!-- Status -->
+            <div id="status" class="status loading" style="display:none;"></div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <div class="control-group">
+                    <label for="product">Product Category</label>
+                    <select id="product">
+                        <option value="all">All Products</option>
+                        <option value="Rice">Rice</option>
+                        <option value="Water">Bottled Water</option>
+                        <option value="Oil">Cooking Oil</option>
+                        <option value="Noodles">Instant Noodles</option>
+                        <option value="Sugar">Sugar</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="days">Forecast Days</label>
+                    <input type="number" id="days" min="1" max="90" value="7">
+                </div>
+
+                <div class="control-group">
+                    <label for="store">Store Number</label>
+                    <input type="number" id="store" min="1" value="44">
+                </div>
+
+                <div class="control-group" style="justify-content: flex-end;">
+                    <button onclick="generateForecast()">Generate Forecast</button>
+                </div>
+            </div>
+
+            <!-- Metrics -->
+            <div class="metrics" id="metrics">
+                <div class="metric-card">
+                    <div class="metric-label">Model Type</div>
+                    <div class="metric-value">Random Forest</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Accuracy</div>
+                    <div class="metric-value" id="accuracy">92%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">MAPE Error</div>
+                    <div class="metric-value" id="mape">8.5%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">RMSE</div>
+                    <div class="metric-value" id="rmse">125.3</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts">
+                <div class="chart-container">
+                    <div class="chart-title">📈 Sales Forecast</div>
+                    <canvas id="forecastChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">📊 Historical Data</div>
+                    <canvas id="historicalChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Forecast Table -->
+            <div class="chart-container">
+                <div class="chart-title">📋 Detailed Forecast</div>
+                <div class="table-container">
+                    <table id="forecastTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Prediction</th>
+                                <th>Lower Bound (85%)</th>
+                                <th>Upper Bound (115%)</th>
+                                <th>Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="forecastBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: #999;">
+                                    Click "Generate Forecast" to see predictions
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Wing Shop Demand Forecasting System | Powered by Random Forest ML Model</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                <span id="lastUpdate">Loading...</span>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Global chart variables
+        let forecastChart = null;
+        let historicalChart = null;
+
+        // API Base URL (auto-detect)
+        const API_BASE = window.location.origin;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadMetrics();
+            loadHistoricalData();
+        });
+
+        function showStatus(message, type = 'loading') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        async function loadMetrics() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/metrics`);
+                if (response.data.success) {
+                    const m = response.data.metrics;
+                    document.getElementById('accuracy').textContent = (m.accuracy * 100).toFixed(0) + '%';
+                    document.getElementById('mape').textContent = m.mape.toFixed(1) + '%';
+                    document.getElementById('rmse').textContent = m.rmse.toFixed(1);
+                }
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        }
+
+        async function loadHistoricalData() {
+            try {
+                const product = document.getElementById('product').value;
+                const response = await axios.get(`${API_BASE}/api/historical`, {
+                    params: { days: 30, product: product }
+                });
+
+                if (response.data.success) {
+                    const data = response.data.historical;
+                    updateHistoricalChart(data);
+                }
+            } catch (error) {
+                console.error('Error loading historical data:', error);
+            }
+        }
+
+        async function generateForecast() {
+            const product = document.getElementById('product').value;
+            const days = parseInt(document.getElementById('days').value);
+            const store = parseInt(document.getElementById('store').value);
+
+            showStatus('🔄 Generating forecast...', 'loading');
+            document.querySelector('button').disabled = true;
+
+            try {
+                const response = await axios.post(`${API_BASE}/api/forecast`, {
+                    days: days,
+                    product: product,
+                    store: store
+                });
+
+                if (response.data.success) {
+                    const forecast = response.data.forecast;
+                    updateForecastChart(forecast);
+                    updateForecastTable(forecast);
+                    showStatus('✅ Forecast generated successfully!', 'success');
+
+                    // Reload historical data
+                    loadHistoricalData();
+                } else {
+                    showStatus('❌ Error: ' + (response.data.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Error: ' + (error.response?.data?.error || error.message), 'error');
+            } finally {
+                document.querySelector('button').disabled = false;
+                setTimeout(hideStatus, 3000);
+            }
+        }
+
+        function updateForecastChart(forecast) {
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+            const dates = forecast.map(f => f.date);
+            const predictions = forecast.map(f => f.prediction);
+            const lowerBound = forecast.map(f => f.lower_bound);
+            const upperBound = forecast.map(f => f.upper_bound);
+
+            if (forecastChart) {
+                forecastChart.destroy();
+            }
+
+            forecastChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'Forecast',
+                            data: predictions,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#667eea'
+                        },
+                        {
+                            label: 'Upper Bound (115%)',
+                            data: upperBound,
+                            borderColor: '#90ee90',
+                            borderDash: [5, 5],
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Lower Bound (85%)',
+                            data: lowerBound,
+                            borderColor: '#ff6b6b',
+                            borderDash: [5, 5],
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateHistoricalChart(historical) {
+            const ctx = document.getElementById('historicalChart').getContext('2d');
+            const dates = historical.map(h => h.date);
+            const values = historical.map(h => h.value);
+
+            if (historicalChart) {
+                historicalChart.destroy();
+            }
+
+            historicalChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Historical Sales',
+                        data: values,
+                        backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                        borderColor: '#667eea',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateForecastTable(forecast) {
+            const tbody = document.getElementById('forecastBody');
+            tbody.innerHTML = '';
+
+            forecast.forEach(f => {
+                const row = `
+                    <tr>
+                        <td>${f.date}</td>
+                        <td><strong>${f.prediction}</strong></td>
+                        <td>${f.lower_bound}</td>
+                        <td>${f.upper_bound}</td>
+                        <td>${(f.confidence * 100).toFixed(0)}%</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // Update historical data when product changes
+        document.getElementById('product').addEventListener('change', loadHistoricalData);
+
+        // Update footer with last update time
+        function updateLastUpdateTime() {
+            document.getElementById('lastUpdate').textContent = 
+                'Last updated: ' + new Date().toLocaleString();
+        }
+        updateLastUpdateTime();
+        setInterval(updateLastUpdateTime, 60000);
+    </script>
+</body>
+</html>
