@@ -1,16 +1,15 @@
 {
   "version": 2,
-  "buildCommand": "pip install -r requirements.txt",
   "public": false,
   "functions": {
     "api/**/*.py": {
-      "runtime": "python3.9"
+      "runtime": "python@3.9"
     }
   },
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/$1.py"
+      "dest": "/api/$1"
     },
     {
       "src": "/static/(.*)",
